@@ -104,7 +104,6 @@
 		'home-assistant'
 		'openbazaar'
 		'dietpi-wifi-monitor'
-		'docker'
 		'bdd'
 		'minio'
 	)
