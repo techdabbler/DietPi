@@ -298,7 +298,7 @@ _EOF_
 	# - Software
 	#NB: All software has a unique index that must not be changed (eg: DESKTOP_LXDE = 23)
 	TOTAL_SOFTWARE_INDEXS=0
-	TOTAL_SOFTWARE_INDEXS_HARDLIMIT=161	#Increase as needed. Must be higher than TOTAL_SOFTWARE_INDEXS once calculated in Software_Arrays_Init
+	TOTAL_SOFTWARE_INDEXS_HARDLIMIT=164	#Increase as needed. Must be higher than TOTAL_SOFTWARE_INDEXS once calculated in Software_Arrays_Init
 
 	INSTALLING_INDEX=0					#Which software index is currently being installed?
 
@@ -1376,6 +1376,17 @@ _EOF_
 		done
 
 		aSOFTWARE_AVAIL_HW_MODEL[$index_current,21]=1
+
+		#------------------
+		index_current=163
+				 aSOFTWARE_WHIP_NAME[$index_current]='Nukkit'
+				 aSOFTWARE_WHIP_DESC[$index_current]='A nuclear-powered server for Minecraft Pocket Edition'
+			aSOFTWARE_CATEGORY_INDEX[$index_current]=5
+						aSOFTWARE_TYPE[$index_current]=0
+				aSOFTWARE_REQUIRES_ORACLEJAVA[$index_current]=1
+
+		# Disable x86_64
+		aSOFTWARE_AVAIL_HW_ARCH[$index_current,10]=0
 
 		#Social Media
 		#--------------------------------------------------------------------------------
@@ -7012,6 +7023,27 @@ _EOF_
 
 		fi
 
+		#Nukkit
+		INSTALLING_INDEX=163
+		if (( ${aSOFTWARE_INSTALL_STATE[$INSTALLING_INDEX]} == 1 )); then
+
+			Banner_Installing
+
+			INSTALL_URL_ADDRESS='http://ci.mengcraft.com:8080/job/nukkit/lastStableBuild/artifact/target/nukkit-1.0-SNAPSHOT.jar'
+
+			/DietPi/dietpi/func/check_connection "$INSTALL_URL_ADDRESS"
+
+			if (( $? == 0 )); then
+
+				mkdir /usr/local/bin/nukkit
+				cd /usr/local/bin/nukkit
+				wget -O nukkit.jar "$INSTALL_URL_ADDRESS"
+
+			else
+				Error_NoConnection_NoInstall
+			fi
+		fi
+
 		#Allo Web Interface
 		INSTALLING_INDEX=159 #160 for quick reinstall
 		if (( ${aSOFTWARE_INSTALL_STATE[$INSTALLING_INDEX]} == 1 ||
@@ -11589,7 +11621,28 @@ minio
 _EOF_
 
 		fi
+		#-------------------------------------------------------------------
 
+		#Nukkit Config
+		INSTALLING_INDEX=163
+		if (( ${aSOFTWARE_INSTALL_STATE[$INSTALLING_INDEX]} == 1 )); then
+			# Conig file to autostart -- english default
+			cd /usr/local/bin/nukkit
+			wget -O nukkit.yml https://github.com/Nukkit/Languages/raw/master/eng/nukkit.yml
+			# create systemd file
+			cat << _EOF_ > /etc/systemd/system/nukkit.service
+[Unit]
+Description=nukkit
+
+[Service]
+WorkingDirectory=/usr/local/bin/nukkit
+ExecStart=/bin/bash -c 'java -jar /usr/local/bin/nukkit/nukkit.jar'
+
+[Install]
+WantedBy=multi-user.target
+_EOF_
+
+	fi
 		#Allo Config
 		INSTALLING_INDEX=159 #160 for quick reinstall
 		if (( ${aSOFTWARE_INSTALL_STATE[$INSTALLING_INDEX]} == 1 ||
@@ -12603,6 +12656,13 @@ _EOF_
 			# Remove from DietPi-Services
 			grep -v "minio" /DietPi/dietpi/.dietpi-services_include > /DietPi/dietpi/.dietpi-services_include.temp
 			mv /DietPi/dietpi/.dietpi-services_include.temp /DietPi/dietpi/.dietpi-services_include
+
+		elif (( $1 == 163)); then
+			# Remove Service file
+			rm /etc/systemd/system/nukkit.service
+
+			# remove nukkit java file/folder
+			rm -r /usr/local/bin/nukkit
 
 		elif (( $1 == 159 || $1 == 160 )); then
 
