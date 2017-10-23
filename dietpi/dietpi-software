@@ -8740,104 +8740,6 @@ _EOF_
 
 			fi
 
-			#Nginx: https://docs.nextcloud.com/server/12/admin_manual/installation/nginx.html#nextcloud-in-a-subdir-of-nginx
-			if (( ${aSOFTWARE_INSTALL_STATE[85]} >= 1 )); then
-
-				cat << _EOF_ > /etc/nginx/sites-dietpi/nextcloud.config
-location ^~ /nextcloud {
-
-	# set max upload size
-	client_max_body_size $(( $(php -r 'print(PHP_INT_MAX);') / 1024 / 1024))M;
-	fastcgi_buffers 64 4K;
-
-	# Enable gzip but do not remove ETag headers
-	gzip on;
-	gzip_vary on;
-	gzip_comp_level 4;
-	gzip_min_length 256;
-	gzip_proxied expired no-cache no-store private no_last_modified no_etag auth;
-	gzip_types application/atom+xml application/javascript application/json application/ld+json application/manifest+json application/rss+xml application/vnd.geo+json application/vnd.ms-fontobject application/x-font-ttf application/x-web-app-manifest+json application/xhtml+xml application/xml font/opentype image/bmp image/svg+xml image/x-icon text/cache-manifest text/css text/plain text/vcard text/vnd.rim.location.xloc text/vtt text/x-component text/x-cross-domain-policy;
-
-	# Uncomment if your server is build with the ngx_pagespeed module
-	# This module is currently not supported.
-	#pagespeed off;
-
-	location /nextcloud {
-		rewrite ^ /nextcloud/index.php\$request_uri;
-	}
-
-	location ~ ^/nextcloud/(?:build|tests|config|lib|3rdparty|templates|data)/ {
-		deny all;
-	}
-	location ~ ^/nextcloud/(?:\.|autotest|occ|issue|indie|db_|console) {
-		deny all;
-	}
-
-	location ~ ^/nextcloud/(?:index|remote|public|cron|core/ajax/update|status|ocs/v[12]|updater/.+|ocs-provider/.+)\.php(?:$|/) {
-	include fastcgi_params;
-	fastcgi_split_path_info ^(.+\.php)(/.+)$;
-	fastcgi_param SCRIPT_FILENAME \$request_filename;
-	fastcgi_param PATH_INFO \$fastcgi_path_info;
-	fastcgi_param HTTPS on;
-	#Avoid sending the security headers twice
-	fastcgi_param modHeadersAvailable true;
-	fastcgi_param REMOTE_USER \$remote_user;
-	fastcgi_pass unix:/var/run/php5-fpm.sock;
-	fastcgi_intercept_errors on;
-		# Disable because Jessie Nginx does not support that parameter
-	#fastcgi_request_buffering off;
-	}
-
-	location ~ ^/nextcloud/(?:updater|ocs-provider)(?:$|/) {
-	try_files \$uri/ =404;
-		index index.php;
-	}
-
-	# Adding the cache control header for js and css files
-	# Make sure it is BELOW the PHP block
-	location ~ \.(?:css|js|woff|svg|gif)$ {
-		try_files \$uri /nextcloud/index.php\$uri\$is_args\$args;
-		add_header Strict-Transport-Security "max-age=15768000; includeSubDomains; preload;";
-		add_header Cache-Control "public, max-age=15778463";
-	add_header X-Content-Type-Options nosniff;
-		add_header X-XSS-Protection "1; mode=block";
-		add_header X-Robots-Tag none;
-		add_header X-Download-Options noopen;
-		add_header X-Permitted-Cross-Domain-Policies none;
-		# Optional: Don't log access to assets
-		access_log off;
-	}
-
-	location ~ \.(?:png|html|ttf|ico|jpg|jpeg)$ {
-		try_files \$uri /nextcloud/index.php\$uri$is_args\$args;
-		# Optional: Don't log access to other assets
-		access_log off;
-	}
-
-	# Setting PHP values by using this method: http://php.net/manual/en/install.fpm.configuration.php Example #2
-	# OPCache configuration: https://docs.nextcloud.com/server/12/admin_manual/configuration_server/server_tuning.html?highlight=opcache#enable-php-opcache
-	# APCu configuration: To prevent cron.php produce Nextcloud log [info] entry.
-	#"opcache.enable=1" defaults anyway and isn't possible here: http://php.net/manual/en/opcache.configuration.php#ini.opcache.enable
-	fastcgi_param PHP_ADMIN_VALUE "opcache.enable_cli=1
-	opcache.interned_strings_buffer=8
-	opcache.max_accelerated_files=10000
-	opcache.memory_consumption=128
-	opcache.save_comments=1
-	opcache.revalidate_freq=1
-	apc.enable_cli=1";
-
-}
-_EOF_
-
-				# - Stretch, set php7.0
-				if (( $DISTRO >= 4 )); then
-
-					sed -i "s#/run/php5-fpm.sock#/run/php/php7.0-fpm.sock#g" /etc/nginx/sites-dietpi/nextcloud.config
-
-				fi
-
-			fi
-
 			mkdir -p "$FP_DIETPI_USERDATA_DIRECTORY"/nextcloud_data
 
 			Install_Apply_Permissions &> /dev/null
@@ -9132,22 +9034,7 @@ _EOF_
 
 			mkdir -p "$FP_DIETPI_USERDATA_DIRECTORY"/roon
 
-			cat << _EOF_ > /etc/systemd/system/roonbridge.service
-[Unit]
-Description=Roon Bridge
-After=network.target sound.target
-
-[Service]
-Type=simple
-User=root
-Environment=ROON_DATAROOT=$FP_DIETPI_USERDATA_DIRECTORY/roon
-Environment=ROON_ID_DIR=$FP_DIETPI_USERDATA_DIRECTORY/roon
-ExecStart=/etc/roonbridge/start.sh
-Restart=on-abort
-
-[Install]
-WantedBy=multi-user.target
-_EOF_
+			cp /DietPi/dietpi/conf/roonbridge.service /etc/systemd/system/roonbridge.service
 
 			# - Move logfiles to /var/log/ (dietpi-ramlog)
 			#	Remove any previous folders to clear for symlink
@@ -10554,17 +10441,7 @@ _EOF_
 			# - Replace Sysinit service with SystemD
 			echo -e "#This file is no longer used as service has been upgraded to SystemD.\n#Please see /etc/systemd/system/squeezelite.service to set start options" > /etc/default/squeezelite
 			rm /etc/init.d/squeezelite
-			cat << _EOF_ > /etc/systemd/system/squeezelite.service
-[Unit]
-Description=squeezelite
-
-[Service]
-Type=simple
-ExecStart=/usr/bin/squeezelite -a 4096:8096:16:0 -C 5 -n 'DietPi-Squeezelite' -f /var/log/squeezelite.log
-
-[Install]
-WantedBy=multi-user.target
-_EOF_
+			cp /DietPi/dietpi/conf/squeezelite.service /etc/systemd/system/squeezelite.service
 
 			Download_Test_Media
 
@@ -10669,23 +10546,7 @@ _EOF_
 		if (( ${aSOFTWARE_INSTALL_STATE[$INSTALLING_INDEX]} == 1 )); then
 
 			# - service
-			cat << _EOF_ > /etc/systemd/system/netdata.service
-[Unit]
-Description=Real time performance monitoring
-After=network.target httpd.service squid.service nfs-server.service mysqld.service named.service postfix.service
-
-[Service]
-Type=simple
-User=root
-Group=root
-ExecStart=/usr/sbin/netdata -D
-
-# saving a big db on slow disks may need some time
-TimeoutStopSec=60
-
-[Install]
-WantedBy=multi-user.target
-_EOF_
+			cp /DietPi/dietpi/conf/netdata.service /etc/systemd/system/netdata.service
 
 			systemctl daemon-reload
 
@@ -12192,19 +12053,7 @@ _EOF_
 		INSTALLING_INDEX=163
 		if (( ${aSOFTWARE_INSTALL_STATE[$INSTALLING_INDEX]} == 1 )); then
 
-			cat << _EOF_ > /etc/systemd/system/gmrender.service
-[Unit]
-Description=gmrender
-After=network.target
-
-[Service]
-Type=simple
-User=root
-ExecStart=$(which gmediarender) -f DietPi --gstout-audiodevice=sysdefault --gstout-initial-volume-db=-1 --logfile=/var/log/gmrender.log
-
-[Install]
-WantedBy=multi-user.target
-_EOF_
+			cp /DietPi/dietpi/conf/gmrender.service /etc/systemd/system/gmrender.service
 
 		fi
 
